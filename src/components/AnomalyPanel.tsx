@@ -15,7 +15,7 @@ export default function AnomalyPanel({ currentState }: AnomalyPanelProps) {
     }`}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-gray-400 text-xs uppercase tracking-wider font-semibold">
-          Q2 · Anomaly Detection
+          Anomaly Detection
         </h2>
         <div className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
           anomalyActive ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-green-500/20 text-green-400'

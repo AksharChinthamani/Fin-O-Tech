@@ -15,7 +15,7 @@ export default function MarketStatus({ currentState }: MarketStatusProps) {
     <div className="bg-[#111827] rounded-xl border border-gray-800 p-5 h-full">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-gray-400 text-xs uppercase tracking-wider font-semibold">
-          Q1 · Current Market State
+          Current Market State
         </h2>
         <span className="text-[10px] text-gray-600 bg-gray-800/50 px-2 py-0.5 rounded">REAL-TIME</span>
       </div>
