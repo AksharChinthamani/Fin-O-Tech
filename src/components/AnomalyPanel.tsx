@@ -63,7 +63,7 @@ export default function AnomalyPanel({ currentState }: AnomalyPanelProps) {
           </span>
         </div>
         <p className="text-gray-600 text-[10px] mt-1 ml-5">
-          IS_ANOMALY = stress_score &gt; 65 ∧ (|Z_price| &gt; 3.0 ∨ Z_volume &gt; 3.5)
+          IS_ANOMALY = stress_score &gt; 30 ∧ (|Z_price| &gt; 1.8 ∨ Z_volume &gt; 2.0)
         </p>
       </div>
     </div>

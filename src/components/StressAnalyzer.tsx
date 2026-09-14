@@ -1,10 +1,17 @@
-import { AnomalyEvent } from '../types';
+import { AnomalyEvent, MarketState } from '../types';
 
 interface StressAnalyzerProps {
   latestAnomaly: AnomalyEvent | null;
+  currentState: MarketState | null;
 }
 
-export default function StressAnalyzer({ latestAnomaly }: StressAnalyzerProps) {
+export default function StressAnalyzer({ latestAnomaly, currentState }: StressAnalyzerProps) {
+  // Use live current state for stress bars when no anomaly is active
+  const liveZPrice = currentState?.zPrice ?? 0;
+  const liveZVolume = currentState?.zVolume ?? 0;
+  const liveBuySell = currentState?.buySellRatio ?? 0.5;
+  const liveVelocity = currentState?.priceVelocity ?? 0;
+
   return (
     <div className="bg-[#111827] rounded-xl border border-gray-800 p-5 h-full">
       <div className="flex items-center justify-between mb-4">
@@ -19,15 +26,19 @@ export default function StressAnalyzer({ latestAnomaly }: StressAnalyzerProps) {
       </div>
       
       {!latestAnomaly ? (
-        <div className="flex items-center justify-center h-[calc(100%-2rem)]">
-          <div className="text-center">
-            <div className="w-12 h-12 rounded-full bg-gray-800/50 flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+        <div className="space-y-4">
+          <div className="bg-[#0d1117] rounded-lg p-3 border border-gray-800/50">
+            <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Live Stress Composition</p>
+            <p className="text-gray-400 text-xs">System monitoring — no anomaly detected yet</p>
+          </div>
+          <div className="pt-1">
+            <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-2">Current Factor Readings</p>
+            <div className="grid grid-cols-2 gap-2">
+              <FactorBar label="Price" value={Math.abs(liveZPrice) * 30} max={100} color="cyan" />
+              <FactorBar label="Volume" value={Math.max(0, liveZVolume) * 40} max={100} color="purple" />
+              <FactorBar label="B/S Imbalance" value={Math.abs(liveBuySell - 0.5) * 100 * 20} max={100} color="amber" />
+              <FactorBar label="Velocity" value={Math.abs(liveVelocity) * 10} max={100} color="green" />
             </div>
-            <p className="text-gray-500 text-sm">No active anomaly</p>
-            <p className="text-gray-600 text-xs mt-1">System monitoring in normal mode</p>
           </div>
         </div>
       ) : (

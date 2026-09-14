@@ -48,9 +48,8 @@ export function calcStressScore(
 
 // Determine if current state is anomalous
 export function isAnomaly(stressScore: number, zPrice: number, zVolume: number): boolean {
-  // Require higher thresholds and multi-factor confirmation
-  // Anomaly only if stress is high AND at least one factor is extreme
-  return stressScore > 65 && (Math.abs(zPrice) > 3.0 || zVolume > 3.5);
+  // Anomaly if stress is elevated AND at least one factor is significantly deviated
+  return stressScore > 30 && (Math.abs(zPrice) > 1.8 || zVolume > 2.0);
 }
 
 // Generate human-readable explanation for anomaly
@@ -102,37 +101,32 @@ export function findHistoricalMatches(
   corpus: HistoricalCorpusEntry[],
   topN: number = 100
 ): HistoricalMatch[] {
-  const matches: HistoricalMatch[] = [];
-  
-  // Scan entire 6-month corpus
-  for (let i = 0; i < corpus.length; i++) {
-    const hist = corpus[i];
+  // Always compute distances for all entries, then pick the closest topN
+  // This guarantees Q4 is never empty, even during extreme anomalies
+  const allMatches: HistoricalMatch[] = corpus.map((hist, i) => {
     const dist = Math.sqrt(
       Math.pow(currentState.zPrice - hist.zPrice, 2) +
       Math.pow(currentState.zVolume - hist.zVolume, 2) +
       Math.pow(currentState.buySellRatio - hist.buySellRatio, 2) +
-      Math.pow(currentState.priceVelocity - hist.priceVelocity, 2) * 100
+      Math.pow(currentState.priceVelocity - hist.priceVelocity, 2)
     );
-    
-    if (dist < 1.5) {
-      matches.push({
-        timestamp: i, // Index as proxy for time
-        distance: dist,
-        futureReturn: hist.futureReturns,
-        zPrice: hist.zPrice,
-        zVolume: hist.zVolume,
-        buySellRatio: hist.buySellRatio,
-      });
-    }
-  }
-  
-  matches.sort((a, b) => a.distance - b.distance);
-  return matches.slice(0, topN);
+    return {
+      timestamp: i,
+      distance: dist,
+      futureReturn: hist.futureReturns,
+      zPrice: hist.zPrice,
+      zVolume: hist.zVolume,
+      buySellRatio: hist.buySellRatio,
+    };
+  });
+
+  allMatches.sort((a, b) => a.distance - b.distance);
+  return allMatches.slice(0, topN);
 }
 
 // Calculate probability prediction from historical matches
 export function calcPrediction(matches: HistoricalMatch[], currentPrice: number): ProbabilityPrediction | null {
-  if (matches.length < 5) return null;
+  if (matches.length < 1) return null;
   
   const returns = matches.map(m => m.futureReturn);
   const upCount = returns.filter(r => r > 0).length;

@@ -39,7 +39,7 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
           <MarketStatus currentState={currentState} />
           <AnomalyPanel currentState={currentState} />
-          <StressAnalyzer latestAnomaly={anomalies[0] || null} />
+          <StressAnalyzer latestAnomaly={anomalies[0] || null} currentState={currentState} />
           <ProbabilityEngine 
             prediction={prediction} 
             currentPrice={currentState?.close || 0} 

@@ -1,5 +1,5 @@
 @import "tailwindcss";
-
+@source "./";
 * {
   scrollbar-width: thin;
   scrollbar-color: #1f2937 #0a0e17;

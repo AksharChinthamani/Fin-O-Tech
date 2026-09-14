@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MarketState, AnomalyEvent, ChartCandle, ProbabilityPrediction, HistoricalCorpusEntry } from '../types';
 import {
-  calcReturn,
   calcZScore,
   rollingMean,
   rollingStdDev,
@@ -138,6 +137,7 @@ export function useMarketSimulation() {
   const tickRef = useRef(0);
   const lastChartTimeRef = useRef(0);
   const corpusRef = useRef<HistoricalCorpusEntry[]>([]);
+  const latestStateRef = useRef<MarketState | null>(null);
 
   // Initialize historical corpus and recent data
   useEffect(() => {
@@ -167,6 +167,12 @@ export function useMarketSimulation() {
     if (candles.length > 0) {
       lastChartTimeRef.current = candles[candles.length - 1].time;
     }
+
+    // Compute an initial Q4 prediction immediately on startup
+    const lastState = data[data.length - 1];
+    const initialMatches = findHistoricalMatches(lastState, corpus);
+    const initialPred = calcPrediction(initialMatches, lastState.close);
+    if (initialPred) setPrediction(initialPred);
   }, []);
 
   const simulateTick = useCallback(() => {
@@ -248,6 +254,8 @@ export function useMarketSimulation() {
       }
       
       setCurrentState(newState);
+      // Expose newState for post-setter Q4 update
+      latestStateRef.current = newState;
       
       // Update chart data with unique timestamps
       setChartData(prev => {
@@ -266,16 +274,11 @@ export function useMarketSimulation() {
         };
         return [...prev.slice(-150), newCandle];
       });
-      
-      // Handle anomaly
+
       if (anomaly) {
         const { explanation, factors } = generateExplanation(zPrice, zVolume, buySellRatio, velocity);
         
-        // Search across full 6-month historical corpus (259,200 candles)
-        const matches = findHistoricalMatches(newState, corpusRef.current);
-        const pred = calcPrediction(matches, newPrice);
-        setPrediction(pred);
-        
+        // Build anomaly event — prediction will be attached after Q4 runs
         const event: AnomalyEvent = {
           id: `anomaly-${Date.now()}`,
           timestamp: Date.now(),
@@ -287,7 +290,7 @@ export function useMarketSimulation() {
           velocity,
           explanation,
           primaryFactors: factors,
-          prediction: pred,
+          prediction: null, // filled in below
         };
         
         setAnomalies(prev => [event, ...prev].slice(0, 20));
@@ -296,6 +299,14 @@ export function useMarketSimulation() {
       
       return newData;
     });
+
+    // Q4: run prediction OUTSIDE the state updater so setPrediction is always reliable
+    const stateForPrediction = latestStateRef.current;
+    if (stateForPrediction && corpusRef.current.length > 0) {
+      const matches = findHistoricalMatches(stateForPrediction, corpusRef.current);
+      const pred = calcPrediction(matches, stateForPrediction.close);
+      if (pred) setPrediction(pred);
+    }
   }, [isRunning]);
 
   useEffect(() => {
