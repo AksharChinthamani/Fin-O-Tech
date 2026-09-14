@@ -77,7 +77,15 @@ export default function PriceChart({ data }: PriceChartProps) {
   useEffect(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current || data.length === 0) return;
 
-    const candleData = data.map(d => ({
+    // Filter out any duplicate timestamps to ensure strict ascending order
+    const seen = new Set<number>();
+    const uniqueData = data.filter(d => {
+      if (seen.has(d.time)) return false;
+      seen.add(d.time);
+      return true;
+    });
+
+    const candleData = uniqueData.map(d => ({
       time: d.time as any,
       open: d.open,
       high: d.high,
@@ -85,7 +93,7 @@ export default function PriceChart({ data }: PriceChartProps) {
       close: d.close,
     }));
 
-    const volumeData = data.map(d => ({
+    const volumeData = uniqueData.map(d => ({
       time: d.time as any,
       value: d.volume,
       color: d.close >= d.open ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',

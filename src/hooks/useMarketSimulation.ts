@@ -86,6 +86,7 @@ export function useMarketSimulation() {
   const [totalAnomalies, setTotalAnomalies] = useState(0);
   const lastPriceRef = useRef(INITIAL_PRICE);
   const tickRef = useRef(0);
+  const lastChartTimeRef = useRef(0);
 
   // Initialize historical data
   useEffect(() => {
@@ -103,6 +104,11 @@ export function useMarketSimulation() {
     }));
     setChartData(candles);
     setCurrentState(data[data.length - 1]);
+    
+    // Set the last chart time to ensure future candles have strictly increasing timestamps
+    if (candles.length > 0) {
+      lastChartTimeRef.current = candles[candles.length - 1].time;
+    }
   }, []);
 
   const simulateTick = useCallback(() => {
@@ -183,10 +189,15 @@ export function useMarketSimulation() {
       
       setCurrentState(newState);
       
-      // Update chart data
+      // Update chart data with unique timestamps
       setChartData(prev => {
+        const now = Math.floor(Date.now() / 1000);
+        // Ensure timestamp is strictly greater than previous
+        const newTime = now > lastChartTimeRef.current ? now : lastChartTimeRef.current + 1;
+        lastChartTimeRef.current = newTime;
+        
         const newCandle: ChartCandle = {
-          time: Math.floor(Date.now() / 1000),
+          time: newTime,
           open: lastPrice,
           high: newState.high,
           low: newState.low,
