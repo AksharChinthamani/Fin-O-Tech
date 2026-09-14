@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { MarketState, AnomalyEvent, ChartCandle, ProbabilityPrediction, HistoricalCorpusEntry } from '../types';
 import {
   calcZScore,
@@ -272,11 +272,12 @@ export function useMarketSimulation() {
     if (anomalyDetected) {
       const { explanation, factors } = generateExplanation(zPrice, zVolume, buySellRatio, velocity);
 
-      // Q4: historical probability scan -- only on anomaly
-      const matches = findHistoricalMatches(newState, corpusRef.current);
-      const pred = calcPrediction(matches, newPrice);
-      if (pred) setPrediction(pred);
+      // Snapshot values needed for async prediction (avoid closure over mutable state)
+      const snapState = newState;
+      const snapPrice = newPrice;
+      const snapCorpus = corpusRef.current;
 
+      // Anomaly event (prediction attached asynchronously below)
       const event: AnomalyEvent = {
         id: `anomaly-${Date.now()}`,
         timestamp: Date.now(),
@@ -288,11 +289,19 @@ export function useMarketSimulation() {
         velocity,
         explanation,
         primaryFactors: factors,
-        prediction: pred ?? null,
+        prediction: null,
       };
 
       setAnomalies(prev => [event, ...prev].slice(0, 20));
       setTotalAnomalies(prev => prev + 1);
+
+      // Q4: defer the heavy 259k-entry scan to next event loop tick so React
+      // can commit anomaly/stress UI updates first, then prediction fires cleanly
+      setTimeout(() => {
+        const matches = findHistoricalMatches(snapState, snapCorpus);
+        const pred = calcPrediction(matches, snapPrice);
+        if (pred) setPrediction(pred);
+      }, 0);
     }
   }, [isRunning]);
 
