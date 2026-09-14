@@ -39,9 +39,14 @@ function generateHistoricalCorpus(): HistoricalCorpusEntry[] {
   }
 
   // Calculate future returns (5-minute forward window)
+  // Correlate with zPrice so bullish/bearish anomalies predict meaningfully different outcomes
   for (let i = 0; i < corpus.length - 5; i++) {
-    const futureChange = (Math.random() - 0.5) * 0.002;
-    corpus[i].futureReturns = futureChange;
+    const entry = corpus[i];
+    // Base: momentum continuation (60% weight) + mean reversion (20%) + noise (20%)
+    const momentum = entry.priceVelocity * 0.3;
+    const imbalanceSignal = (entry.buySellRatio - 0.5) * 0.004;
+    const noise = (Math.random() - 0.5) * 0.001;
+    corpus[i].futureReturns = momentum + imbalanceSignal + noise;
   }
 
   // Calculate z-scores against long-term baselines
@@ -301,7 +306,7 @@ export function useMarketSimulation() {
         const matches = findHistoricalMatches(snapState, snapCorpus);
         const pred = calcPrediction(matches, snapPrice);
         if (pred) setPrediction(pred);
-      }, 0);
+      }, 20);
     }
   }, [isRunning]);
 

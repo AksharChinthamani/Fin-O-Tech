@@ -1,5 +1,6 @@
 import { ProbabilityPrediction } from '../types';
 import { formatPrice, formatPercent } from '../utils/calculations';
+import { useState, useEffect } from 'react';
 
 interface ProbabilityEngineProps {
   prediction: ProbabilityPrediction | null;
@@ -7,17 +8,41 @@ interface ProbabilityEngineProps {
 }
 
 export default function ProbabilityEngine({ prediction, currentPrice }: ProbabilityEngineProps) {
+  const [lastScanned, setLastScanned] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
+
+  // Track when prediction last updated
+  useEffect(() => {
+    if (!prediction) return;
+    const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLastScanned(time);
+    setFlash(true);
+    const t = setTimeout(() => setFlash(false), 800);
+    return () => clearTimeout(t);
+  }, [prediction]);
+
   return (
-    <div className="bg-[#111827] rounded-xl border border-gray-800 p-5 h-full">
+    <div className={`bg-[#111827] rounded-xl border p-5 h-full transition-all duration-300 ${
+      flash ? 'border-cyan-500/60 shadow-lg shadow-cyan-500/10' : 'border-gray-800'
+    }`}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-gray-400 text-xs uppercase tracking-wider font-semibold">
           Historical Probability Engine
         </h2>
-        {prediction && (
-          <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
-            {prediction.sampleSize} matches found
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {lastScanned && (
+            <span className={`text-[10px] px-2 py-0.5 rounded transition-all duration-300 ${
+              flash ? 'bg-cyan-500/20 text-cyan-300 animate-pulse' : 'bg-gray-800/50 text-gray-500'
+            }`}>
+              {flash ? '⚡ Updated' : lastScanned}
+            </span>
+          )}
+          {prediction && (
+            <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
+              {prediction.sampleSize} matches
+            </span>
+          )}
+        </div>
       </div>
       
       {!prediction ? (
