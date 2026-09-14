@@ -121,21 +121,23 @@ export function useMarketSimulation() {
       
       const lastPrice = prevData[prevData.length - 1].close;
       
-      // Occasionally inject anomalies for demo purposes
-      const isInjectingAnomaly = tickRef.current % 20 === 0 || (Math.random() > 0.92);
+      // Occasionally inject anomalies for demo purposes (less frequent, more significant)
+      const isInjectingAnomaly = tickRef.current % 40 === 0 || (Math.random() > 0.97);
       
       let change: number;
       let volumeMultiplier: number;
       
       if (isInjectingAnomaly) {
         const direction = Math.random() > 0.5 ? 1 : -1;
-        change = direction * (0.003 + Math.random() * 0.005);
-        volumeMultiplier = 3 + Math.random() * 4;
+        // Real anomalies: 0.5% - 1.5% moves
+        change = direction * (0.005 + Math.random() * 0.01);
+        volumeMultiplier = 4 + Math.random() * 6;
       } else {
-        const volatility = 0.0005 + Math.random() * 0.0003;
-        const drift = (Math.random() - 0.498) * 0.0001;
+        // Normal Bitcoin volatility: 0.02% - 0.1% per tick
+        const volatility = 0.0002 + Math.random() * 0.0008;
+        const drift = (Math.random() - 0.498) * 0.00005;
         change = drift + (Math.random() - 0.5) * volatility * 2;
-        volumeMultiplier = 0.8 + Math.random() * 0.6;
+        volumeMultiplier = 0.7 + Math.random() * 0.6;
       }
       
       const newPrice = lastPrice * (1 + change);
@@ -146,13 +148,13 @@ export function useMarketSimulation() {
       
       lastPriceRef.current = newPrice;
       
-      // Calculate long-term baselines
+      // Calculate long-term baselines (use full history for more stable baselines)
       const allReturns = prevData.map(d => d.returns);
       const allVolumes = prevData.map(d => d.volume);
-      const returnMean = rollingMean(allReturns, Math.min(200, allReturns.length));
-      const returnStd = rollingStdDev(allReturns, Math.min(200, allReturns.length));
-      const volMean = rollingMean(allVolumes, Math.min(200, allVolumes.length));
-      const volStd = rollingStdDev(allVolumes, Math.min(200, allVolumes.length));
+      const returnMean = rollingMean(allReturns, Math.min(500, allReturns.length));
+      const returnStd = rollingStdDev(allReturns, Math.min(500, allReturns.length));
+      const volMean = rollingMean(allVolumes, Math.min(500, allVolumes.length));
+      const volStd = rollingStdDev(allVolumes, Math.min(500, allVolumes.length));
       
       const zPrice = calcZScore(change, returnMean, returnStd);
       const zVolume = calcZScore(newVolume, volMean, volStd);

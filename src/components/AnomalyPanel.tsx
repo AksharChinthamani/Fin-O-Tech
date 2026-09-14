@@ -28,15 +28,15 @@ export default function AnomalyPanel({ currentState }: AnomalyPanelProps) {
         <ThresholdBar 
           label="Price Z-Score" 
           value={currentState.zPrice} 
-          threshold={2.5} 
-          max={5}
+          threshold={3.0} 
+          max={6}
           description="Deviation from 12-month mean returns"
         />
         <ThresholdBar 
           label="Volume Z-Score" 
           value={currentState.zVolume} 
-          threshold={3.0} 
-          max={8}
+          threshold={3.5} 
+          max={10}
           description="Deviation from 12-month volume baseline"
         />
         <ThresholdBar 
@@ -49,8 +49,8 @@ export default function AnomalyPanel({ currentState }: AnomalyPanelProps) {
         <ThresholdBar 
           label="Price Velocity" 
           value={Math.abs(currentState.priceVelocity) * 10} 
-          threshold={2.0} 
-          max={5}
+          threshold={3.0} 
+          max={10}
           description="Rate of price change per minute"
         />
       </div>
@@ -63,7 +63,7 @@ export default function AnomalyPanel({ currentState }: AnomalyPanelProps) {
           </span>
         </div>
         <p className="text-gray-600 text-[10px] mt-1 ml-5">
-          IS_ANOMALY = stress_score &gt; 45 ∨ |Z_price| &gt; 2.5 ∨ Z_volume &gt; 3.0
+          IS_ANOMALY = stress_score &gt; 65 ∧ (|Z_price| &gt; 3.0 ∨ Z_volume &gt; 3.5)
         </p>
       </div>
     </div>

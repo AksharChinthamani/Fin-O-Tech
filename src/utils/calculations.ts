@@ -33,18 +33,24 @@ export function calcStressScore(
   buySellRatio: number,
   velocity: number
 ): number {
-  const raw = 
-    (Math.abs(zPrice) * 30) +
-    (Math.max(0, zVolume) * 40) +
-    (Math.abs(buySellRatio - 0.5) * 100 * 20) +
-    (Math.abs(velocity) * 10);
+  // Only count significant deviations (ignore noise)
+  const priceStress = Math.abs(zPrice) > 1.5 ? Math.abs(zPrice) * 25 : 0;
+  const volumeStress = zVolume > 2.0 ? zVolume * 30 : 0;
+  const imbalanceStress = Math.abs(buySellRatio - 0.5) > 0.15 
+    ? Math.abs(buySellRatio - 0.5) * 100 * 15 
+    : 0;
+  const velocityStress = Math.abs(velocity) > 0.003 ? Math.abs(velocity) * 8 : 0;
+  
+  const raw = priceStress + volumeStress + imbalanceStress + velocityStress;
   
   return Math.min(100, Math.max(0, raw));
 }
 
 // Determine if current state is anomalous
 export function isAnomaly(stressScore: number, zPrice: number, zVolume: number): boolean {
-  return stressScore > 45 || Math.abs(zPrice) > 2.5 || zVolume > 3.0;
+  // Require higher thresholds and multi-factor confirmation
+  // Anomaly only if stress is high AND at least one factor is extreme
+  return stressScore > 65 && (Math.abs(zPrice) > 3.0 || zVolume > 3.5);
 }
 
 // Generate human-readable explanation for anomaly
@@ -56,29 +62,30 @@ export function generateExplanation(
 ): { explanation: string; factors: string[] } {
   const factors: string[] = [];
   
-  if (Math.abs(zPrice) > 2.0) {
+  if (Math.abs(zPrice) > 3.0) {
     factors.push(zPrice > 0 
-      ? `Price surge ${zPrice.toFixed(1)}σ above normal` 
-      : `Price drop ${Math.abs(zPrice).toFixed(1)}σ below normal`);
+      ? `Significant price surge ${zPrice.toFixed(1)}σ above normal` 
+      : `Significant price drop ${Math.abs(zPrice).toFixed(1)}σ below normal`);
   }
   
-  if (zVolume > 2.5) {
-    factors.push(`Volume spike ${zVolume.toFixed(1)}x above baseline`);
+  if (zVolume > 3.5) {
+    factors.push(`Major volume spike ${zVolume.toFixed(1)}x above baseline`);
   }
   
-  if (buySellRatio > 0.65) {
-    factors.push(`Heavy buy pressure (${(buySellRatio * 100).toFixed(0)}% buy-side)`);
-  } else if (buySellRatio < 0.35) {
-    factors.push(`Heavy sell pressure (${((1 - buySellRatio) * 100).toFixed(0)}% sell-side)`);
+  if (buySellRatio > 0.70) {
+    factors.push(`Overwhelming buy pressure (${(buySellRatio * 100).toFixed(0)}% buy-side)`);
+  } else if (buySellRatio < 0.30) {
+    factors.push(`Overwhelming sell pressure (${((1 - buySellRatio) * 100).toFixed(0)}% sell-side)`);
   }
   
-  if (Math.abs(velocity) > 0.005) {
-    factors.push(`Rapid price velocity: ${(velocity * 100).toFixed(3)}%/min`);
+  if (Math.abs(velocity) > 0.008) {
+    factors.push(`Extreme price velocity: ${(velocity * 100).toFixed(3)}%/min`);
   }
   
   const direction = zPrice > 0 ? 'bullish' : 'bearish';
-  const severity = stressScoreCalc(zPrice, zVolume, buySellRatio, velocity) > 70 ? 'EXTREME' : 
-                   stressScoreCalc(zPrice, zVolume, buySellRatio, velocity) > 55 ? 'HIGH' : 'MODERATE';
+  const stress = stressScoreCalc(zPrice, zVolume, buySellRatio, velocity);
+  const severity = stress > 80 ? 'EXTREME' : 
+                   stress > 70 ? 'HIGH' : 'MODERATE';
   
   const explanation = `${severity} ${direction} anomaly detected. ${factors.join('. ')}.`;
   
