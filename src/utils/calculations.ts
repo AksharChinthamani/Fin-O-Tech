@@ -61,32 +61,35 @@ export function generateExplanation(
 ): { explanation: string; factors: string[] } {
   const factors: string[] = [];
   
-  if (Math.abs(zPrice) > 3.0) {
+  // Thresholds match isAnomaly() so factors are always populated on anomaly
+  if (Math.abs(zPrice) > 1.8) {
     factors.push(zPrice > 0 
-      ? `Significant price surge ${zPrice.toFixed(1)}σ above normal` 
-      : `Significant price drop ${Math.abs(zPrice).toFixed(1)}σ below normal`);
+      ? `Price surge ${zPrice.toFixed(1)}σ above normal` 
+      : `Price drop ${Math.abs(zPrice).toFixed(1)}σ below normal`);
   }
   
-  if (zVolume > 3.5) {
-    factors.push(`Major volume spike ${zVolume.toFixed(1)}x above baseline`);
+  if (zVolume > 2.0) {
+    factors.push(`Volume spike ${zVolume.toFixed(1)}σ above baseline`);
   }
   
-  if (buySellRatio > 0.70) {
-    factors.push(`Overwhelming buy pressure (${(buySellRatio * 100).toFixed(0)}% buy-side)`);
-  } else if (buySellRatio < 0.30) {
-    factors.push(`Overwhelming sell pressure (${((1 - buySellRatio) * 100).toFixed(0)}% sell-side)`);
+  if (buySellRatio > 0.65) {
+    factors.push(`Strong buy pressure (${(buySellRatio * 100).toFixed(0)}% buy-side)`);
+  } else if (buySellRatio < 0.35) {
+    factors.push(`Strong sell pressure (${((1 - buySellRatio) * 100).toFixed(0)}% sell-side)`);
   }
   
-  if (Math.abs(velocity) > 0.008) {
-    factors.push(`Extreme price velocity: ${(velocity * 100).toFixed(3)}%/min`);
+  if (Math.abs(velocity) > 0.005) {
+    factors.push(`Elevated price velocity: ${(velocity * 100).toFixed(3)}%/min`);
   }
   
   const direction = zPrice > 0 ? 'bullish' : 'bearish';
   const stress = stressScoreCalc(zPrice, zVolume, buySellRatio, velocity);
   const severity = stress > 80 ? 'EXTREME' : 
-                   stress > 70 ? 'HIGH' : 'MODERATE';
+                   stress > 70 ? 'HIGH' : 
+                   stress > 50 ? 'MODERATE' : 'LOW';
   
-  const explanation = `${severity} ${direction} anomaly detected. ${factors.join('. ')}.`;
+  const factorStr = factors.length > 0 ? ` ${factors.join('. ')}.` : '';
+  const explanation = `${severity} ${direction} anomaly detected.${factorStr}`;
   
   return { explanation, factors };
 }

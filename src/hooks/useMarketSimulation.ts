@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { MarketState, AnomalyEvent, ChartCandle, ProbabilityPrediction, HistoricalCorpusEntry } from '../types';
 import {
   calcZScore,
@@ -19,45 +19,41 @@ const CORPUS_SIZE = 259200; // 6 months of 1-minute candles (6 * 30 * 24 * 60)
 function generateHistoricalCorpus(): HistoricalCorpusEntry[] {
   const corpus: HistoricalCorpusEntry[] = [];
   let price = INITIAL_PRICE * (0.85 + Math.random() * 0.1);
-  
-  // Generate 6 months of data
+
   for (let i = 0; i < CORPUS_SIZE; i++) {
     const volatility = 0.0008 + Math.random() * 0.0004;
     const drift = (Math.random() - 0.498) * 0.0002;
     const change = drift + (Math.random() - 0.5) * volatility * 2;
-    
+
     price = price * (1 + change);
-    const volume = 50 + Math.random() * 200 + (Math.random() > 0.95 ? 500 : 0);
     const buySellRatio = 0.45 + Math.random() * 0.1;
     const priceVelocity = change * 10;
-    
+
     corpus.push({
-      zPrice: 0, // Will be calculated after
+      zPrice: 0,
       zVolume: 0,
       buySellRatio,
       priceVelocity,
-      futureReturns: 0, // Will be calculated after
+      futureReturns: 0,
     });
   }
-  
+
   // Calculate future returns (5-minute forward window)
   for (let i = 0; i < corpus.length - 5; i++) {
-    // Simulate future price movement
     const futureChange = (Math.random() - 0.5) * 0.002;
     corpus[i].futureReturns = futureChange;
   }
-  
+
   // Calculate z-scores against long-term baselines
   const allVelocities = corpus.map(d => d.priceVelocity);
   const velMean = rollingMean(allVelocities, corpus.length);
   const velStd = rollingStdDev(allVelocities, corpus.length);
-  
-  // Simulate z-scores based on velocity and buy/sell ratio
+
   for (const entry of corpus) {
     entry.zPrice = calcZScore(entry.priceVelocity, velMean, velStd) * (Math.random() > 0.5 ? 1 : -1);
     entry.zVolume = Math.abs(calcZScore(entry.priceVelocity * 100, velMean * 100, velStd * 100));
   }
-  
+
   return corpus;
 }
 
@@ -66,21 +62,21 @@ function generateRecentMarketData(numPoints: number): MarketState[] {
   const data: MarketState[] = [];
   let price = INITIAL_PRICE * (0.95 + Math.random() * 0.1);
   const now = Date.now();
-  
+
   for (let i = 0; i < numPoints; i++) {
     const timestamp = now - (numPoints - i) * 60000;
     const volatility = 0.0008 + Math.random() * 0.0004;
     const drift = (Math.random() - 0.498) * 0.0002;
     const change = drift + (Math.random() - 0.5) * volatility * 2;
-    
+
     const open = price;
     const close = price * (1 + change);
     const high = Math.max(open, close) * (1 + Math.random() * 0.0005);
     const low = Math.min(open, close) * (1 - Math.random() * 0.0005);
     const volume = 50 + Math.random() * 200 + (Math.random() > 0.95 ? 500 : 0);
-    
+
     price = close;
-    
+
     data.push({
       timestamp,
       price: close,
@@ -99,12 +95,12 @@ function generateRecentMarketData(numPoints: number): MarketState[] {
       isAnomaly: false,
     });
   }
-  
+
   // Calculate future returns
   for (let i = 0; i < data.length - 5; i++) {
     data[i].futureReturns = (data[i + 5].close - data[i].close) / data[i].close;
   }
-  
+
   // Calculate z-scores against long-term baselines
   const allReturns = data.map(d => d.returns);
   const allVolumes = data.map(d => d.volume);
@@ -112,14 +108,14 @@ function generateRecentMarketData(numPoints: number): MarketState[] {
   const returnStd = rollingStdDev(allReturns, data.length);
   const volMean = rollingMean(allVolumes, data.length);
   const volStd = rollingStdDev(allVolumes, data.length);
-  
+
   for (const d of data) {
     d.zPrice = calcZScore(d.returns, returnMean, returnStd);
     d.zVolume = calcZScore(d.volume, volMean, volStd);
     d.stressScore = calcStressScore(d.zPrice, d.zVolume, d.buySellRatio, d.priceVelocity);
     d.isAnomaly = isAnomaly(d.stressScore, d.zPrice, d.zVolume);
   }
-  
+
   return data;
 }
 
@@ -133,24 +129,24 @@ export function useMarketSimulation() {
   const [isRunning, setIsRunning] = useState(true);
   const [totalAnomalies, setTotalAnomalies] = useState(0);
   const [corpusSize, setCorpusSize] = useState(0);
-  const lastPriceRef = useRef(INITIAL_PRICE);
+
+  // Refs for mutable values accessible in callbacks without stale closures
+  const historicalDataRef = useRef<MarketState[]>([]);
   const tickRef = useRef(0);
   const lastChartTimeRef = useRef(0);
   const corpusRef = useRef<HistoricalCorpusEntry[]>([]);
 
   // Initialize historical corpus and recent data
   useEffect(() => {
-    // Generate full 6-month corpus (runs once)
     const corpus = generateHistoricalCorpus();
     setHistoricalCorpus(corpus);
     setCorpusSize(corpus.length);
-    corpusRef.current = corpus; // Store in ref for access in callbacks
-    
-    // Generate recent market state for live simulation
+    corpusRef.current = corpus;
+
     const data = generateRecentMarketData(500);
+    historicalDataRef.current = data;
     setHistoricalData(data);
-    lastPriceRef.current = data[data.length - 1].close;
-    
+
     const candles: ChartCandle[] = data.slice(-100).map((d: MarketState) => ({
       time: Math.floor(d.timestamp / 1000),
       open: d.open,
@@ -161,141 +157,143 @@ export function useMarketSimulation() {
     }));
     setChartData(candles);
     setCurrentState(data[data.length - 1]);
-    
-    // Set the last chart time to ensure future candles have strictly increasing timestamps
+
     if (candles.length > 0) {
       lastChartTimeRef.current = candles[candles.length - 1].time;
     }
 
-    // Prediction starts null — will only populate on first anomaly
+    // Prediction starts null -- only populates on first anomaly
   }, []);
 
   const simulateTick = useCallback(() => {
     if (!isRunning) return;
-    
+
+    // Read from ref -- always fresh, no stale closure
+    const prevData = historicalDataRef.current;
+    if (prevData.length === 0) return;
+
     tickRef.current++;
-    
-    setHistoricalData(prevData => {
-      if (prevData.length === 0) return prevData;
-      
-      const lastPrice = prevData[prevData.length - 1].close;
-      
-      // Occasionally inject anomalies for demo purposes (less frequent, more significant)
-      const isInjectingAnomaly = tickRef.current % 40 === 0 || (Math.random() > 0.97);
-      
-      let change: number;
-      let volumeMultiplier: number;
-      
-      if (isInjectingAnomaly) {
-        const direction = Math.random() > 0.5 ? 1 : -1;
-        // Real anomalies: 0.5% - 1.5% moves
-        change = direction * (0.005 + Math.random() * 0.01);
-        volumeMultiplier = 4 + Math.random() * 6;
-      } else {
-        // Normal Bitcoin volatility: 0.02% - 0.1% per tick
-        const volatility = 0.0002 + Math.random() * 0.0008;
-        const drift = (Math.random() - 0.498) * 0.00005;
-        change = drift + (Math.random() - 0.5) * volatility * 2;
-        volumeMultiplier = 0.7 + Math.random() * 0.6;
+
+    const lastPrice = prevData[prevData.length - 1].close;
+
+    // Inject anomalies periodically for demo purposes
+    const isInjectingAnomaly = tickRef.current % 40 === 0 || Math.random() > 0.97;
+
+    let change: number;
+    let volumeMultiplier: number;
+
+    if (isInjectingAnomaly) {
+      const direction = Math.random() > 0.5 ? 1 : -1;
+      // Real anomalies: 0.5% - 1.5% moves
+      change = direction * (0.005 + Math.random() * 0.01);
+      volumeMultiplier = 4 + Math.random() * 6;
+    } else {
+      // Normal Bitcoin volatility: 0.02% - 0.1% per tick
+      const volatility = 0.0002 + Math.random() * 0.0008;
+      const drift = (Math.random() - 0.498) * 0.00005;
+      change = drift + (Math.random() - 0.5) * volatility * 2;
+      volumeMultiplier = 0.7 + Math.random() * 0.6;
+    }
+
+    const newPrice = lastPrice * (1 + change);
+    const newVolume = (80 + Math.random() * 150) * volumeMultiplier;
+    const buySellRatio = isInjectingAnomaly
+      ? (change > 0 ? 0.65 + Math.random() * 0.15 : 0.2 + Math.random() * 0.15)
+      : 0.45 + Math.random() * 0.1;
+
+    // Calculate long-term baselines from ref data
+    const allReturns = prevData.map(d => d.returns);
+    const allVolumes = prevData.map(d => d.volume);
+    const returnMean = rollingMean(allReturns, Math.min(500, allReturns.length));
+    const returnStd = rollingStdDev(allReturns, Math.min(500, allReturns.length));
+    const volMean = rollingMean(allVolumes, Math.min(500, allVolumes.length));
+    const volStd = rollingStdDev(allVolumes, Math.min(500, allVolumes.length));
+
+    const zPrice = calcZScore(change, returnMean, returnStd);
+    const zVolume = calcZScore(newVolume, volMean, volStd);
+    const velocity = change * 10;
+    const stressScore = calcStressScore(zPrice, zVolume, buySellRatio, velocity);
+    const anomalyDetected = isAnomaly(stressScore, zPrice, zVolume);
+
+    const newState: MarketState = {
+      timestamp: Date.now(),
+      price: newPrice,
+      open: lastPrice,
+      high: Math.max(lastPrice, newPrice) * (1 + Math.random() * 0.0002),
+      low: Math.min(lastPrice, newPrice) * (1 - Math.random() * 0.0002),
+      close: newPrice,
+      volume: newVolume,
+      returns: change,
+      futureReturns: 0,
+      zPrice,
+      zVolume,
+      buySellRatio,
+      priceVelocity: velocity,
+      stressScore,
+      isAnomaly: anomalyDetected,
+    };
+
+    // Build updated history array
+    const newData = [...prevData.slice(-499), newState];
+
+    // Update future returns for recent entries
+    for (let i = Math.max(0, newData.length - 6); i < newData.length - 1; i++) {
+      if (i + 5 < newData.length) {
+        newData[i] = {
+          ...newData[i],
+          futureReturns: (newData[i + 5].close - newData[i].close) / newData[i].close,
+        };
       }
-      
-      const newPrice = lastPrice * (1 + change);
-      const newVolume = (80 + Math.random() * 150) * volumeMultiplier;
-      const buySellRatio = isInjectingAnomaly 
-        ? (change > 0 ? 0.65 + Math.random() * 0.15 : 0.2 + Math.random() * 0.15)
-        : 0.45 + Math.random() * 0.1;
-      
-      lastPriceRef.current = newPrice;
-      
-      // Calculate long-term baselines (use full history for more stable baselines)
-      const allReturns = prevData.map(d => d.returns);
-      const allVolumes = prevData.map(d => d.volume);
-      const returnMean = rollingMean(allReturns, Math.min(500, allReturns.length));
-      const returnStd = rollingStdDev(allReturns, Math.min(500, allReturns.length));
-      const volMean = rollingMean(allVolumes, Math.min(500, allVolumes.length));
-      const volStd = rollingStdDev(allVolumes, Math.min(500, allVolumes.length));
-      
-      const zPrice = calcZScore(change, returnMean, returnStd);
-      const zVolume = calcZScore(newVolume, volMean, volStd);
-      const velocity = change * 10;
-      const stressScore = calcStressScore(zPrice, zVolume, buySellRatio, velocity);
-      const anomaly = isAnomaly(stressScore, zPrice, zVolume);
-      
-      const newState: MarketState = {
+    }
+
+    // Update ref immediately so next tick uses fresh data
+    historicalDataRef.current = newData;
+
+    // All state updates at top level -- never nested inside other setters
+    setHistoricalData(newData);
+    setCurrentState(newState);
+
+    // Compute chart timestamp outside any setter
+    const nowSec = Math.floor(Date.now() / 1000);
+    const newTime = nowSec > lastChartTimeRef.current ? nowSec : lastChartTimeRef.current + 1;
+    lastChartTimeRef.current = newTime;
+
+    const newCandle: ChartCandle = {
+      time: newTime,
+      open: lastPrice,
+      high: newState.high,
+      low: newState.low,
+      close: newPrice,
+      volume: newVolume,
+    };
+    setChartData(prev => [...prev.slice(-150), newCandle]);
+
+    // Anomaly and prediction -- only triggered when anomaly is detected
+    if (anomalyDetected) {
+      const { explanation, factors } = generateExplanation(zPrice, zVolume, buySellRatio, velocity);
+
+      // Q4: historical probability scan -- only on anomaly
+      const matches = findHistoricalMatches(newState, corpusRef.current);
+      const pred = calcPrediction(matches, newPrice);
+      if (pred) setPrediction(pred);
+
+      const event: AnomalyEvent = {
+        id: `anomaly-${Date.now()}`,
         timestamp: Date.now(),
+        stressScore,
         price: newPrice,
-        open: lastPrice,
-        high: Math.max(lastPrice, newPrice) * (1 + Math.random() * 0.0002),
-        low: Math.min(lastPrice, newPrice) * (1 - Math.random() * 0.0002),
-        close: newPrice,
-        volume: newVolume,
-        returns: change,
-        futureReturns: 0,
         zPrice,
         zVolume,
         buySellRatio,
-        priceVelocity: velocity,
-        stressScore,
-        isAnomaly: anomaly,
+        velocity,
+        explanation,
+        primaryFactors: factors,
+        prediction: pred ?? null,
       };
-      
-      const newData = [...prevData.slice(-499), newState];
-      
-      // Update future returns for recent entries
-      for (let i = Math.max(0, newData.length - 6); i < newData.length - 1; i++) {
-        if (i + 5 < newData.length) {
-          newData[i] = { ...newData[i], futureReturns: (newData[i + 5].close - newData[i].close) / newData[i].close };
-        }
-      }
-      
-      setCurrentState(newState);
-      
-      // Update chart data with unique timestamps
-      setChartData(prev => {
-        const now = Math.floor(Date.now() / 1000);
-        // Ensure timestamp is strictly greater than previous
-        const newTime = now > lastChartTimeRef.current ? now : lastChartTimeRef.current + 1;
-        lastChartTimeRef.current = newTime;
-        
-        const newCandle: ChartCandle = {
-          time: newTime,
-          open: lastPrice,
-          high: newState.high,
-          low: newState.low,
-          close: newPrice,
-          volume: newVolume,
-        };
-        return [...prev.slice(-150), newCandle];
-      });
 
-      if (anomaly) {
-        const { explanation, factors } = generateExplanation(zPrice, zVolume, buySellRatio, velocity);
-
-        // Compute Q4 prediction only on anomaly
-        const matches = findHistoricalMatches(newState, corpusRef.current);
-        const pred = calcPrediction(matches, newPrice);
-        if (pred) setPrediction(pred);
-
-        const event: AnomalyEvent = {
-          id: `anomaly-${Date.now()}`,
-          timestamp: Date.now(),
-          stressScore,
-          price: newPrice,
-          zPrice,
-          zVolume,
-          buySellRatio,
-          velocity,
-          explanation,
-          primaryFactors: factors,
-          prediction: pred ?? null,
-        };
-
-        setAnomalies(prev => [event, ...prev].slice(0, 20));
-        setTotalAnomalies(prev => prev + 1);
-      }
-
-      return newData;
-    });
+      setAnomalies(prev => [event, ...prev].slice(0, 20));
+      setTotalAnomalies(prev => prev + 1);
+    }
   }, [isRunning]);
 
   useEffect(() => {
