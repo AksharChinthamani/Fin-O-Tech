@@ -13,12 +13,14 @@ export default function App() {
   const {
     currentState,
     historicalData,
+    historicalCorpus,
     anomalies,
     chartData,
     prediction,
     isRunning,
     setIsRunning,
     totalAnomalies,
+    corpusSize,
   } = useMarketSimulation();
 
   return (
@@ -26,7 +28,8 @@ export default function App() {
       <Header 
         currentState={currentState} 
         isRunning={isRunning} 
-        totalAnomalies={totalAnomalies} 
+        totalAnomalies={totalAnomalies}
+        corpusSize={corpusSize}
       />
       
       <main className="p-4 max-w-[1920px] mx-auto space-y-4">
@@ -84,6 +87,7 @@ export default function App() {
               anomalies={anomalies}
               totalAnomalies={totalAnomalies}
               historicalCount={historicalData.length}
+              corpusSize={corpusSize}
             />
           </div>
         </div>
@@ -94,7 +98,7 @@ export default function App() {
             Project bit-Co · Real-Time Cryptocurrency Anomaly Detection & Probabilistic Pattern Analysis Engine
           </p>
           <p className="text-gray-700 text-[9px] mt-1">
-            Data Source: Binance Public API · Historical Corpus: 12 months · Update Interval: 1.5s · 
+            Data Source: Binance Public API · Historical Corpus: 6 months (259,200 candles) · Update Interval: 1.5s · 
             Similarity: Euclidean Distance (D &lt; 1.5) · Prediction Window: 5-min forward
           </p>
         </footer>

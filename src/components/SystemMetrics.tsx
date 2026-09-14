@@ -6,9 +6,10 @@ interface SystemMetricsProps {
   anomalies: AnomalyEvent[];
   totalAnomalies: number;
   historicalCount: number;
+  corpusSize: number;
 }
 
-export default function SystemMetrics({ currentState, anomalies, totalAnomalies, historicalCount }: SystemMetricsProps) {
+export default function SystemMetrics({ currentState, anomalies, totalAnomalies, historicalCount, corpusSize }: SystemMetricsProps) {
   const uptime = '12h 34m';
   const lastAnomaly = anomalies.length > 0 
     ? `${Math.floor((Date.now() - anomalies[0].timestamp) / 1000)}s ago` 
@@ -28,11 +29,11 @@ export default function SystemMetrics({ currentState, anomalies, totalAnomalies,
       
       <div className="grid grid-cols-4 gap-3">
         <TelemetryCard label="Uptime" value={uptime} />
-        <TelemetryCard label="Data Points" value={historicalCount.toLocaleString()} />
-        <TelemetryCard label="Total Alerts" value={totalAnomalies.toString()} highlight />
+        <TelemetryCard label="Corpus Size" value={corpusSize.toLocaleString()} highlight />
+        <TelemetryCard label="Total Alerts" value={totalAnomalies.toString()} />
         <TelemetryCard label="Last Alert" value={lastAnomaly} />
         <TelemetryCard label="Update Rate" value="1.5s" />
-        <TelemetryCard label="Corpus Span" value="12 months" />
+        <TelemetryCard label="Corpus Span" value="6 months" />
         <TelemetryCard label="Resolution" value="1-minute" />
         <TelemetryCard label="BTC Price" value={currentState ? `$${formatPrice(currentState.close)}` : '---'} />
       </div>

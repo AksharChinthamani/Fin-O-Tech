@@ -1,4 +1,4 @@
-import { MarketState, ProbabilityPrediction, HistoricalMatch } from '../types';
+import { MarketState, ProbabilityPrediction, HistoricalMatch, HistoricalCorpusEntry } from '../types';
 
 // Calculate percentage returns
 export function calcReturn(current: number, previous: number): number {
@@ -96,15 +96,17 @@ function stressScoreCalc(zP: number, zV: number, br: number, vel: number): numbe
   return calcStressScore(zP, zV, br, vel);
 }
 
-// Simulate historical similarity search across 12-month corpus
+// Search across full 6-month historical corpus (260,000+ candles)
 export function findHistoricalMatches(
   currentState: MarketState,
-  historicalData: MarketState[],
-  topN: number = 50
+  corpus: HistoricalCorpusEntry[],
+  topN: number = 100
 ): HistoricalMatch[] {
   const matches: HistoricalMatch[] = [];
   
-  for (const hist of historicalData) {
+  // Scan entire 6-month corpus
+  for (let i = 0; i < corpus.length; i++) {
+    const hist = corpus[i];
     const dist = Math.sqrt(
       Math.pow(currentState.zPrice - hist.zPrice, 2) +
       Math.pow(currentState.zVolume - hist.zVolume, 2) +
@@ -114,7 +116,7 @@ export function findHistoricalMatches(
     
     if (dist < 1.5) {
       matches.push({
-        timestamp: hist.timestamp,
+        timestamp: i, // Index as proxy for time
         distance: dist,
         futureReturn: hist.futureReturns,
         zPrice: hist.zPrice,

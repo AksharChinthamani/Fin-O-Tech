@@ -16,6 +16,15 @@ export interface MarketState {
   isAnomaly: boolean;
 }
 
+// Lightweight structure for 6-month historical corpus (memory efficient)
+export interface HistoricalCorpusEntry {
+  zPrice: number;
+  zVolume: number;
+  buySellRatio: number;
+  priceVelocity: number;
+  futureReturns: number;
+}
+
 export interface AnomalyEvent {
   id: string;
   timestamp: number;

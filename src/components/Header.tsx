@@ -5,9 +5,10 @@ interface HeaderProps {
   currentState: MarketState | null;
   isRunning: boolean;
   totalAnomalies: number;
+  corpusSize: number;
 }
 
-export default function Header({ currentState, isRunning, totalAnomalies }: HeaderProps) {
+export default function Header({ currentState, isRunning, totalAnomalies, corpusSize }: HeaderProps) {
   return (
     <header className="bg-[#0d1117] border-b border-gray-800 px-6 py-3">
       <div className="flex items-center justify-between">
@@ -47,7 +48,7 @@ export default function Header({ currentState, isRunning, totalAnomalies }: Head
           
           <div className="text-right">
             <p className="text-gray-500 text-[10px] uppercase tracking-wider">Historical Corpus</p>
-            <p className="text-cyan-400 font-mono text-sm">525,600 candles</p>
+            <p className="text-cyan-400 font-mono text-sm">{corpusSize.toLocaleString()} candles</p>
           </div>
           
           <div className="text-right">

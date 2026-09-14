@@ -11,7 +11,7 @@ export default function ProbabilityEngine({ prediction, currentPrice }: Probabil
     <div className="bg-[#111827] rounded-xl border border-gray-800 p-5 h-full">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-gray-400 text-xs uppercase tracking-wider font-semibold">
-          Q4 · 12-Month Historical Probability Engine
+          Q4 · 6-Month Historical Probability Engine
         </h2>
         {prediction && (
           <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
@@ -29,7 +29,7 @@ export default function ProbabilityEngine({ prediction, currentPrice }: Probabil
               </svg>
             </div>
             <p className="text-gray-500 text-sm">Awaiting anomaly trigger</p>
-            <p className="text-gray-600 text-xs mt-1">Probabilities computed when anomaly detected</p>
+            <p className="text-gray-600 text-xs mt-1">Will scan 259,200 historical candles when anomaly detected</p>
           </div>
         </div>
       ) : (
@@ -91,7 +91,7 @@ export default function ProbabilityEngine({ prediction, currentPrice }: Probabil
           {/* Sample Info */}
           <div className="flex items-center justify-between pt-2 border-t border-gray-800">
             <span className="text-gray-600 text-[10px]">
-              Based on {prediction.sampleSize} historical analogs from 12-month corpus
+              Based on {prediction.sampleSize} historical analogs from 6-month corpus (259,200 candles)
             </span>
             <span className="text-gray-600 text-[10px]">
               Euclidean distance threshold: D &lt; 1.5

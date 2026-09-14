@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MarketState, AnomalyEvent, ChartCandle, ProbabilityPrediction } from '../types';
+import { MarketState, AnomalyEvent, ChartCandle, ProbabilityPrediction, HistoricalCorpusEntry } from '../types';
 import {
   calcReturn,
   calcZScore,
@@ -14,10 +14,58 @@ import {
 
 const INITIAL_PRICE = 104850;
 const UPDATE_INTERVAL = 1500; // 1.5 seconds
+const CORPUS_SIZE = 259200; // 6 months of 1-minute candles (6 * 30 * 24 * 60)
 
-function generateInitialHistoricalData(numPoints: number): MarketState[] {
-  const data: MarketState[] = [];
+// Generate full 6-month historical corpus
+function generateHistoricalCorpus(): HistoricalCorpusEntry[] {
+  const corpus: HistoricalCorpusEntry[] = [];
   let price = INITIAL_PRICE * (0.85 + Math.random() * 0.1);
+  
+  // Generate 6 months of data
+  for (let i = 0; i < CORPUS_SIZE; i++) {
+    const volatility = 0.0008 + Math.random() * 0.0004;
+    const drift = (Math.random() - 0.498) * 0.0002;
+    const change = drift + (Math.random() - 0.5) * volatility * 2;
+    
+    price = price * (1 + change);
+    const volume = 50 + Math.random() * 200 + (Math.random() > 0.95 ? 500 : 0);
+    const buySellRatio = 0.45 + Math.random() * 0.1;
+    const priceVelocity = change * 10;
+    
+    corpus.push({
+      zPrice: 0, // Will be calculated after
+      zVolume: 0,
+      buySellRatio,
+      priceVelocity,
+      futureReturns: 0, // Will be calculated after
+    });
+  }
+  
+  // Calculate future returns (5-minute forward window)
+  for (let i = 0; i < corpus.length - 5; i++) {
+    // Simulate future price movement
+    const futureChange = (Math.random() - 0.5) * 0.002;
+    corpus[i].futureReturns = futureChange;
+  }
+  
+  // Calculate z-scores against long-term baselines
+  const allVelocities = corpus.map(d => d.priceVelocity);
+  const velMean = rollingMean(allVelocities, corpus.length);
+  const velStd = rollingStdDev(allVelocities, corpus.length);
+  
+  // Simulate z-scores based on velocity and buy/sell ratio
+  for (const entry of corpus) {
+    entry.zPrice = calcZScore(entry.priceVelocity, velMean, velStd) * (Math.random() > 0.5 ? 1 : -1);
+    entry.zVolume = Math.abs(calcZScore(entry.priceVelocity * 100, velMean * 100, velStd * 100));
+  }
+  
+  return corpus;
+}
+
+// Generate recent market state for live simulation
+function generateRecentMarketData(numPoints: number): MarketState[] {
+  const data: MarketState[] = [];
+  let price = INITIAL_PRICE * (0.95 + Math.random() * 0.1);
   const now = Date.now();
   
   for (let i = 0; i < numPoints; i++) {
@@ -78,23 +126,33 @@ function generateInitialHistoricalData(numPoints: number): MarketState[] {
 
 export function useMarketSimulation() {
   const [historicalData, setHistoricalData] = useState<MarketState[]>([]);
+  const [historicalCorpus, setHistoricalCorpus] = useState<HistoricalCorpusEntry[]>([]);
   const [currentState, setCurrentState] = useState<MarketState | null>(null);
   const [anomalies, setAnomalies] = useState<AnomalyEvent[]>([]);
   const [chartData, setChartData] = useState<ChartCandle[]>([]);
   const [prediction, setPrediction] = useState<ProbabilityPrediction | null>(null);
   const [isRunning, setIsRunning] = useState(true);
   const [totalAnomalies, setTotalAnomalies] = useState(0);
+  const [corpusSize, setCorpusSize] = useState(0);
   const lastPriceRef = useRef(INITIAL_PRICE);
   const tickRef = useRef(0);
   const lastChartTimeRef = useRef(0);
+  const corpusRef = useRef<HistoricalCorpusEntry[]>([]);
 
-  // Initialize historical data
+  // Initialize historical corpus and recent data
   useEffect(() => {
-    const data = generateInitialHistoricalData(500);
+    // Generate full 6-month corpus (runs once)
+    const corpus = generateHistoricalCorpus();
+    setHistoricalCorpus(corpus);
+    setCorpusSize(corpus.length);
+    corpusRef.current = corpus; // Store in ref for access in callbacks
+    
+    // Generate recent market state for live simulation
+    const data = generateRecentMarketData(500);
     setHistoricalData(data);
     lastPriceRef.current = data[data.length - 1].close;
     
-    const candles: ChartCandle[] = data.slice(-100).map(d => ({
+    const candles: ChartCandle[] = data.slice(-100).map((d: MarketState) => ({
       time: Math.floor(d.timestamp / 1000),
       open: d.open,
       high: d.high,
@@ -213,7 +271,8 @@ export function useMarketSimulation() {
       if (anomaly) {
         const { explanation, factors } = generateExplanation(zPrice, zVolume, buySellRatio, velocity);
         
-        const matches = findHistoricalMatches(newState, newData);
+        // Search across full 6-month historical corpus (259,200 candles)
+        const matches = findHistoricalMatches(newState, corpusRef.current);
         const pred = calcPrediction(matches, newPrice);
         setPrediction(pred);
         
@@ -247,11 +306,13 @@ export function useMarketSimulation() {
   return {
     currentState,
     historicalData,
+    historicalCorpus,
     anomalies,
     chartData,
     prediction,
     isRunning,
     setIsRunning,
     totalAnomalies,
+    corpusSize,
   };
 }
