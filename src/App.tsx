@@ -33,33 +33,7 @@ export default function App() {
       />
       
       <main className="p-4 max-w-[1920px] mx-auto space-y-4">
-        {/* Control Bar */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsRunning(!isRunning)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                isRunning 
-                  ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30' 
-                  : 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30'
-              }`}
-            >
-              {isRunning ? '⏸ Pause Engine' : '▶ Resume Engine'}
-            </button>
-            <div className="text-gray-500 text-xs">
-              Watch → Understand → Compare → Alert → Recalculate → Watch
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-[10px] text-gray-600">
-            <span>Module 1: Ingestion ✓</span>
-            <span>Module 2: Baseline ✓</span>
-            <span>Module 3: Anomaly ✓</span>
-            <span>Module 4: Stress ✓</span>
-            <span>Module 5: Similarity ✓</span>
-            <span>Module 6: Probability ✓</span>
-            <span>Module 7: UI ✓</span>
-          </div>
-        </div>
+
 
         {/* Q1-Q4 Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
